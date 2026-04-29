@@ -1,0 +1,6 @@
+config.properties
+users.txt
+*.class
+target/
+dependency-reduced-pom.xml
+STT/

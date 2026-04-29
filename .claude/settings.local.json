@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(D:/JDK/bin/java -jar target/english-speaker-1.0.jar)",
+      "Bash(taskkill //F //PID 31672)",
+      "Bash(kill 31672)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}

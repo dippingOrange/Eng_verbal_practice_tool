@@ -1,0 +1,3 @@
+api.endpoint=https://api.deepseek.com/v1/chat/completions
+api.key=-
+api.model=deepseek-v4-pro

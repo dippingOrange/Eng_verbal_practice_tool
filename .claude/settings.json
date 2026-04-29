@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(file \"e:/EN_study_tool/Eng_verbal_practice_tool/STT/whisper-bin-x64/Release/\"*.exe)",
+      "Bash(\"e:/EN_study_tool/Eng_verbal_practice_tool/STT/whisper-cli.exe\" --help)",
+      "Bash(\"e:/EN_study_tool/Eng_verbal_practice_tool/STT/whisper-cli.exe\")",
+      "Bash(cd /tmp)",
+      "Bash(unzip -o \"e:/EN_study_tool/Eng_verbal_practice_tool/STT/../STT/whisper-bin-x64.zip\" -d \"e:/EN_study_tool/Eng_verbal_practice_tool/STT_dlls/\")",
+      "Bash(find /tmp -name \"ggml.dll\")"
+    ]
+  }
+}
