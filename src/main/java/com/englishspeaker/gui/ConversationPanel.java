@@ -4,6 +4,7 @@ import com.englishspeaker.model.Scenario;
 import com.englishspeaker.service.AudioRecorderService;
 import com.englishspeaker.service.ConversationService;
 import com.englishspeaker.service.SpeechToTextService;
+import com.englishspeaker.service.TextToSpeechService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -16,9 +17,11 @@ public class ConversationPanel extends JPanel {
     private final JButton startBtn = new JButton("Start Conversation");
     private final JButton backBtn = new JButton("Back");
     private final JButton recordBtn = new JButton("🎤 Record");
+    private final JButton ttsToggle = new JButton("🔊 TTS");
     private final ConversationService conversationService;
     private final AudioRecorderService recorder = new AudioRecorderService();
     private final SpeechToTextService stt = new SpeechToTextService();
+    private final TextToSpeechService tts = new TextToSpeechService();
     private boolean conversationActive = false;
 
     public ConversationPanel(ConversationService conversationService, Runnable onBack) {
@@ -62,6 +65,32 @@ public class ConversationPanel extends JPanel {
         bottomPanel.add(inputPanel, BorderLayout.CENTER);
 
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        ttsToggle.addActionListener(e -> {
+            tts.setEnabled(!tts.isEnabled());
+            ttsToggle.setText(tts.isEnabled() ? "🔊 TTS" : "🔇 TTS");
+        });
+        navPanel.add(ttsToggle);
+
+        JComboBox<String> voiceBox = new JComboBox<>(tts.getVoiceNames());
+        voiceBox.addActionListener(e -> {
+            String selected = (String) voiceBox.getSelectedItem();
+            if (selected != null) {
+                tts.setVoice(TextToSpeechService.VOICES.get(selected));
+            }
+        });
+        navPanel.add(new JLabel("Voice:"));
+        navPanel.add(voiceBox);
+
+        JComboBox<String> speedBox = new JComboBox<>(TextToSpeechService.SPEED_LABELS);
+        speedBox.setSelectedIndex(2);
+        speedBox.addActionListener(e -> {
+            int idx = speedBox.getSelectedIndex();
+            if (idx >= 0) {
+                tts.setSpeed(TextToSpeechService.SPEEDS[idx]);
+            }
+        });
+        navPanel.add(new JLabel("Speed:"));
+        navPanel.add(speedBox);
         navPanel.add(backBtn);
         bottomPanel.add(navPanel, BorderLayout.SOUTH);
         add(bottomPanel, BorderLayout.SOUTH);
@@ -135,6 +164,7 @@ public class ConversationPanel extends JPanel {
                 try {
                     String response = get();
                     chatArea.append("AI: " + response + "\n\n");
+                    tts.speakAsync(response);
                     setInputEnabled(true);
                     inputField.requestFocus();
                 } catch (Exception e) {
@@ -163,6 +193,7 @@ public class ConversationPanel extends JPanel {
                 try {
                     String response = get();
                     chatArea.append("AI: " + response + "\n\n");
+                    tts.speakAsync(response);
                 } catch (Exception e) {
                     chatArea.append("Error: " + e.getMessage() + "\n");
                 } finally {

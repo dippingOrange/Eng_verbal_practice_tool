@@ -4,3 +4,6 @@ users.txt
 target/
 dependency-reduced-pom.xml
 STT/
+record_temp.wav
+tts_temp.mp3
+run.bat
