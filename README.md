@@ -1,0 +1,2 @@
+# Eng_verbal_practice_tool
+使用API接入三方模型实现的英语口语练习软件
