@@ -21,6 +21,7 @@ public class ConversationPanel extends JPanel {
     private final JButton ttsToggle = new JButton("🔊 TTS");
     private final JButton replayBtn = new JButton("🔁 Replay");
     private final JButton summaryBtn = new JButton("Summary");
+    private final JButton hideTextBtn = new JButton("🙈 Hide Text");
     private final ConversationService conversationService;
     private final AudioRecorderService recorder = new AudioRecorderService();
     private final SpeechToTextService stt = new SpeechToTextService();
@@ -28,6 +29,64 @@ public class ConversationPanel extends JPanel {
     private boolean conversationActive = false;
     private String lastAiResponse;
     private File lastRecordingFile;
+
+    // 加载动画
+    private final String[] SPINNER = {"|", "/", "—", "\\"};
+    private int spinnerIdx = 0;
+    private Timer spinnerTimer;
+    private int loadingMark; // chatArea 中 "AI: " 标记位置，用于替换 spinner
+
+    private void showLoading() {
+        loadingMark = chatArea.getDocument().getLength();
+        chatArea.append("AI: |");
+        spinnerIdx = 0;
+        if (spinnerTimer == null) {
+            spinnerTimer = new Timer(200, e -> {
+                spinnerIdx = (spinnerIdx + 1) % SPINNER.length;
+                try {
+                    chatArea.replaceRange(SPINNER[spinnerIdx], loadingMark + 4, loadingMark + 5);
+                } catch (Exception ignored) {}
+            });
+        }
+        spinnerTimer.start();
+    }
+
+    private Timer typewriterTimer;
+    private int typePos;
+    private String typeText;
+
+    private void hideLoading(String response) {
+        if (spinnerTimer != null) spinnerTimer.stop();
+        // 清除 loading 标记，开始打字机效果
+        try {
+            chatArea.replaceRange("", loadingMark, chatArea.getDocument().getLength());
+        } catch (Exception ignored) {}
+        typewrite(response);
+    }
+
+    private void typewrite(String text) {
+        typeText = text;
+        typePos = 0;
+
+        // 先写入 "AI: " 前缀
+        if (!chatArea.getText().endsWith("\n") && chatArea.getDocument().getLength() > 0) {
+            chatArea.append("\n");
+        }
+        chatArea.append("AI: ");
+        loadingMark = chatArea.getDocument().getLength();
+
+        if (typewriterTimer != null) typewriterTimer.stop();
+        typewriterTimer = new Timer(25, e -> {
+            if (typePos < typeText.length()) {
+                chatArea.append(String.valueOf(typeText.charAt(typePos)));
+                typePos++;
+            } else {
+                typewriterTimer.stop();
+                chatArea.append("\n\n");
+            }
+        });
+        typewriterTimer.start();
+    }
 
     public ConversationPanel(ConversationService conversationService, Runnable onBack) {
         this.conversationService = conversationService;
@@ -79,6 +138,17 @@ public class ConversationPanel extends JPanel {
         });
         ttsRow.add(new JLabel("Speed:"));
         ttsRow.add(speedBox);
+
+        hideTextBtn.addActionListener(e -> {
+            if (chatArea.getForeground().equals(Color.WHITE)) {
+                chatArea.setForeground(Color.BLACK);
+                hideTextBtn.setText("🙈 Hide Text");
+            } else {
+                chatArea.setForeground(Color.WHITE);
+                hideTextBtn.setText("🙉 Show Text");
+            }
+        });
+        ttsRow.add(hideTextBtn);
         topPanel.add(ttsRow, BorderLayout.CENTER);
         add(topPanel, BorderLayout.NORTH);
 
@@ -170,7 +240,7 @@ public class ConversationPanel extends JPanel {
         chatArea.setText("");
         scenarioBox.setEnabled(false);
         startBtn.setEnabled(false);
-        chatArea.append("AI: Starting conversation...\n");
+        showLoading();
 
         SwingWorker<String, Void> worker = new SwingWorker<>() {
             @Override
@@ -182,14 +252,14 @@ public class ConversationPanel extends JPanel {
             protected void done() {
                 try {
                     String response = get();
-                    chatArea.append("AI: " + response + "\n\n");
+                    hideLoading(response);
                     lastAiResponse = response;
                     replayBtn.setEnabled(true);
                     tts.speakAsync(response);
                     setInputEnabled(true);
                     inputField.requestFocus();
                 } catch (Exception e) {
-                    chatArea.append("Error: " + e.getMessage() + "\n");
+                    hideLoading("Error: " + e.getMessage());
                 }
             }
         };
@@ -203,11 +273,10 @@ public class ConversationPanel extends JPanel {
         File wav = (lastRecordingFile != null && lastRecordingFile.exists()) ? lastRecordingFile : null;
 
         chatArea.append("You: " + input + "\n");
+        showLoading();
         setInputEnabled(false);
 
         SwingWorker<String, Void> worker = new SwingWorker<>() {
-            private int pronScore = -1;
-
             @Override
             protected String doInBackground() throws Exception {
                 return conversationService.sendMessage(input, wav);
@@ -217,27 +286,17 @@ public class ConversationPanel extends JPanel {
             protected void done() {
                 try {
                     String response = get();
-                    // 显示发音分（如果有）
-                    if (wav != null && conversationService.hasScoredTurns()) {
-                        // 从最后一个 turn 获取分数
-                        chatArea.append("  [" + getLastTurnScore() + "/100]\n");
-                        summaryBtn.setEnabled(true);
-                    }
-                    chatArea.append("AI: " + response + "\n\n");
+                    if (wav != null && conversationService.hasScoredTurns()) summaryBtn.setEnabled(true);
+                    hideLoading(response);
                     lastAiResponse = response;
                     replayBtn.setEnabled(true);
                     tts.speakAsync(response);
                 } catch (Exception e) {
-                    chatArea.append("Error: " + e.getMessage() + "\n");
+                    hideLoading("Error: " + e.getMessage());
                 } finally {
                     setInputEnabled(true);
                     inputField.requestFocus();
                 }
-            }
-
-            private String getLastTurnScore() {
-                // conversationService 内部管理 turns，这里简单从 hasScoredTurns 判断
-                return "Pron";
             }
         };
         worker.execute();

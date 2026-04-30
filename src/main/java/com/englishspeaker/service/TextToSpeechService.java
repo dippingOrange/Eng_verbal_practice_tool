@@ -31,40 +31,34 @@ public class TextToSpeechService {
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public boolean isEnabled() { return enabled; }
 
+    private volatile boolean warmedUp = false;
+
+    // 预热：初始化 Python 运行时 + 音频管道，避免首次播放开头丢词
+    public void warmUp() {
+        if (warmedUp) return;
+        warmedUp = true;
+        try {
+            new ProcessBuilder("edge-playback", "--text", " . ").redirectErrorStream(true).start().waitFor();
+        } catch (Exception ignored) {}
+    }
+
     public void speak(String text) {
         if (!enabled || text == null || text.isEmpty()) return;
+        if (!warmedUp) warmUp();
+        text = "... " + text;
         if (text.length() > 500) text = text.substring(0, 497) + "...";
 
-        File tempFile = new File("tts_temp.mp3");
-        tempFile.delete();
-
         try {
-            // Step 1: 生成完整音频文件（不做流式播放）
-            List<String> genCmd = new ArrayList<>();
-            genCmd.add("edge-tts");
-            genCmd.add("--voice"); genCmd.add(voice);
+            List<String> cmd = new ArrayList<>();
+            cmd.add("edge-playback");
+            cmd.add("--voice"); cmd.add(voice);
             if (speed != 1.0) {
                 int ratePercent = Math.round((float) ((speed - 1.0) * 100));
-                genCmd.add("--rate");
-                genCmd.add((ratePercent >= 0 ? "+" : "") + ratePercent + "%");
+                cmd.add("--rate");
+                cmd.add((ratePercent >= 0 ? "+" : "") + ratePercent + "%");
             }
-            genCmd.add("--text"); genCmd.add(text);
-            genCmd.add("--write-media"); genCmd.add(tempFile.getAbsolutePath());
-
-            Process gen = new ProcessBuilder(genCmd).redirectErrorStream(true).start();
-            gen.getInputStream().transferTo(OutputStream.nullOutputStream());
-            int code = gen.waitFor();
-
-            if (code != 0 || !tempFile.exists() || tempFile.length() == 0) return;
-
-            // Step 2: 播放完整文件（从头开始，零丢词）
-            new ProcessBuilder("cmd", "/c", "start", "/min", "wmplayer",
-                    tempFile.getAbsolutePath(), "/close").start();
-
-            // 等待 wmplayer 播放完毕（最长 60s）
-            Thread.sleep(Math.min(60000, tempFile.length() / 2000 + 2000));
-            tempFile.delete();
-
+            cmd.add("--text"); cmd.add(text);
+            new ProcessBuilder(cmd).redirectErrorStream(true).start().waitFor();
         } catch (IOException | InterruptedException e) {
             // silently ignore
         }
