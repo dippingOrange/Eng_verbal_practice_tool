@@ -45,17 +45,29 @@ public class ReadingPanel extends JPanel {
 
         // Center: input + result
         JPanel centerPanel = new JPanel(new BorderLayout(5, 5));
+
+        JLabel inputLabel = new JLabel("🔊 Your Reading:");
+        inputLabel.setFont(new Font("Arial", Font.BOLD, 13));
+        inputLabel.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
+        centerPanel.add(inputLabel, BorderLayout.NORTH);
+
         inputArea.setLineWrap(true);
         inputArea.setWrapStyleWord(true);
         inputArea.setFont(new Font("Arial", Font.PLAIN, 14));
-        centerPanel.add(new JLabel("Type or record the passage:"), BorderLayout.NORTH);
         centerPanel.add(new JScrollPane(inputArea), BorderLayout.CENTER);
+
+        JPanel resultWrap = new JPanel(new BorderLayout(3, 3));
+        JLabel resultLabel = new JLabel("🧠 AI Feedback:");
+        resultLabel.setFont(new Font("Arial", Font.BOLD, 13));
+        resultLabel.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
+        resultWrap.add(resultLabel, BorderLayout.NORTH);
 
         resultArea.setEditable(false);
         resultArea.setLineWrap(true);
         resultArea.setWrapStyleWord(true);
         resultArea.setFont(new Font("Arial", Font.PLAIN, 14));
-        centerPanel.add(new JScrollPane(resultArea), BorderLayout.SOUTH);
+        resultWrap.add(new JScrollPane(resultArea), BorderLayout.CENTER);
+        centerPanel.add(resultWrap, BorderLayout.SOUTH);
 
         pronDetailArea.setEditable(false);
         pronDetailArea.setFont(new Font("Arial", Font.PLAIN, 12));

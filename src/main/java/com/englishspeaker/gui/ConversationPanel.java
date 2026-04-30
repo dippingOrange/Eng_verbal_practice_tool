@@ -13,8 +13,6 @@ import java.io.File;
 public class ConversationPanel extends JPanel {
     private final JComboBox<Scenario> scenarioBox = new JComboBox<>(Scenario.values());
     private final JTextArea chatArea = new JTextArea(15, 50);
-    private final JTextField inputField = new JTextField(40);
-    private final JButton sendBtn = new JButton("Send");
     private final JButton startBtn = new JButton("Start Conversation");
     private final JButton backBtn = new JButton("Back");
     private final JButton recordBtn = new JButton("🎤 Record");
@@ -34,64 +32,11 @@ public class ConversationPanel extends JPanel {
     private final String[] SPINNER = {"|", "/", "—", "\\"};
     private int spinnerIdx = 0;
     private Timer spinnerTimer;
-    private int loadingMark; // chatArea 中 "AI: " 标记位置，用于替换 spinner
-
-    private void showLoading() {
-        loadingMark = chatArea.getDocument().getLength();
-        chatArea.append("AI: |");
-        spinnerIdx = 0;
-        if (spinnerTimer == null) {
-            spinnerTimer = new Timer(200, e -> {
-                spinnerIdx = (spinnerIdx + 1) % SPINNER.length;
-                try {
-                    chatArea.replaceRange(SPINNER[spinnerIdx], loadingMark + 4, loadingMark + 5);
-                } catch (Exception ignored) {}
-            });
-        }
-        spinnerTimer.start();
-    }
+    private int loadingMark;
 
     private Timer typewriterTimer;
     private int typePos;
     private String typeText;
-
-    private void hideLoading(String response) {
-        if (spinnerTimer != null) spinnerTimer.stop();
-        // 清除 loading 标记，开始打字机效果
-        try {
-            chatArea.replaceRange("", loadingMark, chatArea.getDocument().getLength());
-        } catch (Exception ignored) {}
-        typewrite(response);
-    }
-
-    private void typewrite(String text) {
-        typeText = text;
-        typePos = 0;
-
-        // 先写入 "AI: " 前缀
-        if (!chatArea.getText().endsWith("\n") && chatArea.getDocument().getLength() > 0) {
-            chatArea.append("\n");
-        }
-        chatArea.append("AI: ");
-        loadingMark = chatArea.getDocument().getLength();
-
-        if (typewriterTimer != null) typewriterTimer.stop();
-        // 延迟 1.5s 再开始打字，让 TTS 先出声
-        Timer delayTimer = new Timer(1500, ev -> {
-            typewriterTimer = new Timer(25, e -> {
-                if (typePos < typeText.length()) {
-                    chatArea.append(String.valueOf(typeText.charAt(typePos)));
-                    typePos++;
-                } else {
-                    typewriterTimer.stop();
-                    chatArea.append("\n\n");
-                }
-            });
-            typewriterTimer.start();
-        });
-        delayTimer.setRepeats(false);
-        delayTimer.start();
-    }
 
     public ConversationPanel(ConversationService conversationService, Runnable onBack) {
         this.conversationService = conversationService;
@@ -164,15 +109,13 @@ public class ConversationPanel extends JPanel {
         chatArea.setWrapStyleWord(true);
         add(new JScrollPane(chatArea), BorderLayout.CENTER);
 
-        // Bottom: input + nav buttons
+        // Bottom: record button + nav
         JPanel bottomPanel = new JPanel(new BorderLayout(5, 5));
-        JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        inputPanel.add(new JLabel("You:"));
-        inputPanel.add(inputField);
-        inputPanel.add(sendBtn);
-        inputPanel.add(recordBtn);
+        JPanel inputRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        inputRow.add(new JLabel("🎙️ Press to speak:"));
         recordBtn.addActionListener(e -> handleRecord());
-        bottomPanel.add(inputPanel, BorderLayout.CENTER);
+        inputRow.add(recordBtn);
+        bottomPanel.add(inputRow, BorderLayout.CENTER);
 
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         replayBtn.setEnabled(false);
@@ -190,18 +133,61 @@ public class ConversationPanel extends JPanel {
         add(bottomPanel, BorderLayout.SOUTH);
 
         startBtn.addActionListener(e -> handleStart());
-        sendBtn.addActionListener(e -> handleSend());
-        inputField.addActionListener(e -> handleSend());
-
-        setInputEnabled(false);
+        recordBtn.setEnabled(false);
     }
 
-    private void setInputEnabled(boolean enabled) {
-        inputField.setEnabled(enabled);
-        sendBtn.setEnabled(enabled);
-        recordBtn.setEnabled(enabled);
-        inputField.setEditable(enabled);
+    // ---------- Spinner + Typewriter ----------
+
+    private void showLoading() {
+        loadingMark = chatArea.getDocument().getLength();
+        chatArea.append("AI: |");
+        spinnerIdx = 0;
+        if (spinnerTimer == null) {
+            spinnerTimer = new Timer(200, e -> {
+                spinnerIdx = (spinnerIdx + 1) % SPINNER.length;
+                try {
+                    chatArea.replaceRange(SPINNER[spinnerIdx], loadingMark + 4, loadingMark + 5);
+                } catch (Exception ignored) {}
+            });
+        }
+        spinnerTimer.start();
     }
+
+    private void hideLoading(String response) {
+        if (spinnerTimer != null) spinnerTimer.stop();
+        try {
+            chatArea.replaceRange("", loadingMark, chatArea.getDocument().getLength());
+        } catch (Exception ignored) {}
+        typewrite(response);
+    }
+
+    private void typewrite(String text) {
+        typeText = text;
+        typePos = 0;
+        if (!chatArea.getText().endsWith("\n") && chatArea.getDocument().getLength() > 0) {
+            chatArea.append("\n");
+        }
+        chatArea.append("AI: ");
+        loadingMark = chatArea.getDocument().getLength();
+
+        if (typewriterTimer != null) typewriterTimer.stop();
+        Timer delayTimer = new Timer(1500, ev -> {
+            typewriterTimer = new Timer(25, e -> {
+                if (typePos < typeText.length()) {
+                    chatArea.append(String.valueOf(typeText.charAt(typePos)));
+                    typePos++;
+                } else {
+                    typewriterTimer.stop();
+                    chatArea.append("\n\n");
+                }
+            });
+            typewriterTimer.start();
+        });
+        delayTimer.setRepeats(false);
+        delayTimer.start();
+    }
+
+    // ---------- Handlers ----------
 
     private void handleRecord() {
         if (recorder.isRecording()) {
@@ -220,12 +206,14 @@ public class ConversationPanel extends JPanel {
                 protected void done() {
                     try {
                         String text = get();
-                        inputField.setText(text);
-                        inputField.requestFocus();
+                        recordBtn.setText("🎤 Record");
+                        recordBtn.setEnabled(true);
+                        // 自动发送转录文字
+                        chatArea.append("You: " + text + "\n");
+                        autoSend(text);
                     } catch (Exception e) {
                         JOptionPane.showMessageDialog(ConversationPanel.this,
                                 "Transcription failed: " + e.getMessage());
-                    } finally {
                         recordBtn.setText("🎤 Record");
                         recordBtn.setEnabled(true);
                     }
@@ -238,48 +226,10 @@ public class ConversationPanel extends JPanel {
         }
     }
 
-    private void handleStart() {
-        Scenario scenario = (Scenario) scenarioBox.getSelectedItem();
-        conversationService.setScenario(scenario);
-        conversationActive = true;
-        chatArea.setText("");
-        scenarioBox.setEnabled(false);
-        startBtn.setEnabled(false);
-        showLoading();
-
-        SwingWorker<String, Void> worker = new SwingWorker<>() {
-            @Override
-            protected String doInBackground() throws Exception {
-                return conversationService.startConversation();
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    String response = get();
-                    hideLoading(response);
-                    lastAiResponse = response;
-                    replayBtn.setEnabled(true);
-                    tts.speakAsync(response);
-                    setInputEnabled(true);
-                    inputField.requestFocus();
-                } catch (Exception e) {
-                    hideLoading("Error: " + e.getMessage());
-                }
-            }
-        };
-        worker.execute();
-    }
-
-    private void handleSend() {
-        String input = inputField.getText().trim();
+    private void autoSend(String input) {
         if (input.isEmpty() || !conversationActive) return;
-        inputField.setText("");
-        File wav = (lastRecordingFile != null && lastRecordingFile.exists()) ? lastRecordingFile : null;
-
-        chatArea.append("You: " + input + "\n");
         showLoading();
-        setInputEnabled(false);
+        File wav = (lastRecordingFile != null && lastRecordingFile.exists()) ? lastRecordingFile : null;
 
         SwingWorker<String, Void> worker = new SwingWorker<>() {
             @Override
@@ -299,8 +249,39 @@ public class ConversationPanel extends JPanel {
                 } catch (Exception e) {
                     hideLoading("Error: " + e.getMessage());
                 } finally {
-                    setInputEnabled(true);
-                    inputField.requestFocus();
+                    recordBtn.setEnabled(true);
+                }
+            }
+        };
+        worker.execute();
+    }
+
+    private void handleStart() {
+        Scenario scenario = (Scenario) scenarioBox.getSelectedItem();
+        conversationService.setScenario(scenario);
+        conversationActive = true;
+        chatArea.setText("");
+        scenarioBox.setEnabled(false);
+        startBtn.setEnabled(false);
+        recordBtn.setEnabled(true);
+        showLoading();
+
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                return conversationService.startConversation();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    String response = get();
+                    hideLoading(response);
+                    lastAiResponse = response;
+                    replayBtn.setEnabled(true);
+                    tts.speakAsync(response);
+                } catch (Exception e) {
+                    hideLoading("Error: " + e.getMessage());
                 }
             }
         };
@@ -336,10 +317,12 @@ public class ConversationPanel extends JPanel {
         conversationService.resetConversation();
         scenarioBox.setEnabled(true);
         startBtn.setEnabled(true);
+        recordBtn.setEnabled(false);
+        recordBtn.setText("🎤 Record");
         summaryBtn.setEnabled(false);
-        setInputEnabled(false);
         chatArea.setText("");
-        inputField.setText("");
         lastRecordingFile = null;
+        lastAiResponse = null;
+        replayBtn.setEnabled(false);
     }
 }
