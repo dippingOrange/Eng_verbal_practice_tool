@@ -76,16 +76,21 @@ public class ConversationPanel extends JPanel {
         loadingMark = chatArea.getDocument().getLength();
 
         if (typewriterTimer != null) typewriterTimer.stop();
-        typewriterTimer = new Timer(25, e -> {
-            if (typePos < typeText.length()) {
-                chatArea.append(String.valueOf(typeText.charAt(typePos)));
-                typePos++;
-            } else {
-                typewriterTimer.stop();
-                chatArea.append("\n\n");
-            }
+        // 延迟 1.5s 再开始打字，让 TTS 先出声
+        Timer delayTimer = new Timer(1500, ev -> {
+            typewriterTimer = new Timer(25, e -> {
+                if (typePos < typeText.length()) {
+                    chatArea.append(String.valueOf(typeText.charAt(typePos)));
+                    typePos++;
+                } else {
+                    typewriterTimer.stop();
+                    chatArea.append("\n\n");
+                }
+            });
+            typewriterTimer.start();
         });
-        typewriterTimer.start();
+        delayTimer.setRepeats(false);
+        delayTimer.start();
     }
 
     public ConversationPanel(ConversationService conversationService, Runnable onBack) {

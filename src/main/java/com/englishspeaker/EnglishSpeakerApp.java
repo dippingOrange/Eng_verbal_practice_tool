@@ -133,11 +133,34 @@ public class EnglishSpeakerApp extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                // FlatLaf 暖色主题
+                com.formdev.flatlaf.FlatLightLaf.setup();
+                applyWarmTheme();
                 new EnglishSpeakerApp().setVisible(true);
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
             }
         });
+    }
+
+    private static void applyWarmTheme() {
+        // 暖色主调：奶油背景 + 深棕文字 + 琥珀色强调
+        UIManager.put("Button.arc", 8);
+        UIManager.put("Component.arc", 8);
+        UIManager.put("TextComponent.arc", 8);
+        // 按钮：暖橙渐变
+        UIManager.put("Button.foreground", Color.WHITE);
+        UIManager.put("Button.startBackground", new Color(0xF4976C));
+        UIManager.put("Button.endBackground", new Color(0xE8734A));
+        UIManager.put("Button.hoverBackground", new Color(0xF7A88B));
+        // 面板背景：暖奶油
+        UIManager.put("Panel.background", new Color(0xFFF8F0));
+        // 文本区
+        UIManager.put("TextArea.background", Color.WHITE);
+        UIManager.put("TextArea.foreground", new Color(0x3D2B1F));
+        UIManager.put("TextField.background", Color.WHITE);
+        UIManager.put("TextField.foreground", new Color(0x3D2B1F));
+        // 选择色：淡暖
+        UIManager.put("TextComponent.selectionBackground", new Color(0xFDDCB5));
     }
 }

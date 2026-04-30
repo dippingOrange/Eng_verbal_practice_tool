@@ -10,3 +10,5 @@ run.bat
 dist/
 *.log
 Phase*.md
+target/flatlaf*.jar
+warm-theme.properties
