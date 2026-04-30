@@ -6,7 +6,9 @@
       "Bash(kill 31672)",
       "WebFetch(domain:github.com)",
       "Bash(D:/JDK/bin/jar cfe *)",
-      "Bash(cp target/EnglishSpeaker.jar dist/EnglishSpeaker/app/)"
+      "Bash(cp target/EnglishSpeaker.jar dist/EnglishSpeaker/app/)",
+      "Bash(D:/JDK/bin/java -XX:+UseSerialGC -Xmx128m -cp \"target/classes;target/gson-2.11.0.jar\" com.englishspeaker.EnglishSpeakerApp)",
+      "Bash(taskkill //F //PID 486)"
     ]
   }
 }

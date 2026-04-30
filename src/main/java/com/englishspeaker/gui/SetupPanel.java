@@ -131,29 +131,31 @@ public class SetupPanel extends JPanel {
         }
 
         try {
-            // Load existing or create new
-            Properties props = new Properties();
             File file = new File("config.properties");
+            // Load existing to preserve any unhandled keys
+            Properties props = new Properties();
             if (file.exists()) {
                 try (FileInputStream in = new FileInputStream(file)) {
                     props.load(in);
                 }
             }
 
-            // Update DeepSeek
+            // Update values
             props.setProperty("api.endpoint", endpoint);
             props.setProperty("api.key", apiKey);
-            if (!props.containsKey("api.model")) {
-                props.setProperty("api.model", "deepseek-chat");
-            }
-
-            // Update Alibaba ASR
+            if (!props.containsKey("api.model")) props.setProperty("api.model", "deepseek-chat");
             props.setProperty("aliyun.accessKeyId", aliyunKeyIdField.getText().trim());
             props.setProperty("aliyun.accessKeySecret", new String(aliyunKeySecretField.getPassword()).trim());
             props.setProperty("aliyun.appKey", aliyunAppKeyField.getText().trim());
 
-            try (FileOutputStream out = new FileOutputStream(file)) {
-                props.store(out, null);
+            // Write manually — Properties.store() escapes : and = making the file unreadable
+            try (BufferedWriter w = new BufferedWriter(new FileWriter(file))) {
+                for (String key : new String[]{
+                        "api.endpoint", "api.key", "api.model",
+                        "aliyun.accessKeyId", "aliyun.accessKeySecret", "aliyun.appKey"}) {
+                    w.write(key + "=" + props.getProperty(key, ""));
+                    w.newLine();
+                }
             }
 
             statusLabel.setForeground(new Color(0, 128, 0));

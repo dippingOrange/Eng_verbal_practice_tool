@@ -34,29 +34,52 @@ public class ConversationPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Top: scenario selection
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.add(new JLabel("Scenario:"));
+        // Top: scenario + TTS controls (two rows)
+        JPanel topPanel = new JPanel(new BorderLayout(5, 3));
+
+        JPanel scenarioRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
+        scenarioRow.add(new JLabel("Scenario:"));
         scenarioBox.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index,
                                                           boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof Scenario s) {
-                    setText(s.getLabel());
-                }
+                if (value instanceof Scenario s) setText(s.getLabel());
                 return this;
             }
         });
-        topPanel.add(scenarioBox);
-        topPanel.add(startBtn);
-
-        topPanel.add(new JLabel("  Length:"));
+        scenarioRow.add(scenarioBox);
+        scenarioRow.add(startBtn);
+        scenarioRow.add(new JLabel("  Length:"));
         JComboBox<String> lengthBox = new JComboBox<>(ConversationService.LENGTH_LABELS);
-        lengthBox.addActionListener(e ->
-                conversationService.setResponseLength(lengthBox.getSelectedIndex()));
-        topPanel.add(lengthBox);
+        lengthBox.addActionListener(e -> conversationService.setResponseLength(lengthBox.getSelectedIndex()));
+        scenarioRow.add(lengthBox);
+        topPanel.add(scenarioRow, BorderLayout.NORTH);
 
+        JPanel ttsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
+        ttsToggle.addActionListener(e -> {
+            tts.setEnabled(!tts.isEnabled());
+            ttsToggle.setText(tts.isEnabled() ? "🔊 TTS" : "🔇 TTS");
+        });
+        ttsRow.add(ttsToggle);
+
+        JComboBox<String> voiceBox = new JComboBox<>(tts.getVoiceNames());
+        voiceBox.addActionListener(e -> {
+            String selected = (String) voiceBox.getSelectedItem();
+            if (selected != null) tts.setVoice(TextToSpeechService.VOICES.get(selected));
+        });
+        ttsRow.add(new JLabel("Voice:"));
+        ttsRow.add(voiceBox);
+
+        JComboBox<String> speedBox = new JComboBox<>(TextToSpeechService.SPEED_LABELS);
+        speedBox.setSelectedIndex(2);
+        speedBox.addActionListener(e -> {
+            int idx = speedBox.getSelectedIndex();
+            if (idx >= 0) tts.setSpeed(TextToSpeechService.SPEEDS[idx]);
+        });
+        ttsRow.add(new JLabel("Speed:"));
+        ttsRow.add(speedBox);
+        topPanel.add(ttsRow, BorderLayout.CENTER);
         add(topPanel, BorderLayout.NORTH);
 
         // Center: chat area
@@ -66,7 +89,7 @@ public class ConversationPanel extends JPanel {
         chatArea.setWrapStyleWord(true);
         add(new JScrollPane(chatArea), BorderLayout.CENTER);
 
-        // Bottom: input + buttons
+        // Bottom: input + nav buttons
         JPanel bottomPanel = new JPanel(new BorderLayout(5, 5));
         JPanel inputPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         inputPanel.add(new JLabel("You:"));
@@ -77,47 +100,20 @@ public class ConversationPanel extends JPanel {
         bottomPanel.add(inputPanel, BorderLayout.CENTER);
 
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        ttsToggle.addActionListener(e -> {
-            tts.setEnabled(!tts.isEnabled());
-            ttsToggle.setText(tts.isEnabled() ? "🔊 TTS" : "🔇 TTS");
-        });
-        navPanel.add(ttsToggle);
-
-        JComboBox<String> voiceBox = new JComboBox<>(tts.getVoiceNames());
-        voiceBox.addActionListener(e -> {
-            String selected = (String) voiceBox.getSelectedItem();
-            if (selected != null) {
-                tts.setVoice(TextToSpeechService.VOICES.get(selected));
-            }
-        });
-        navPanel.add(new JLabel("Voice:"));
-        navPanel.add(voiceBox);
-
-        JComboBox<String> speedBox = new JComboBox<>(TextToSpeechService.SPEED_LABELS);
-        speedBox.setSelectedIndex(2);
-        speedBox.addActionListener(e -> {
-            int idx = speedBox.getSelectedIndex();
-            if (idx >= 0) {
-                tts.setSpeed(TextToSpeechService.SPEEDS[idx]);
-            }
-        });
-        navPanel.add(new JLabel("Speed:"));
-        navPanel.add(speedBox);
-
         replayBtn.setEnabled(false);
-        replayBtn.addActionListener(e -> {
-            if (lastAiResponse != null) tts.speakAsync(lastAiResponse);
-        });
+        replayBtn.addActionListener(e -> { if (lastAiResponse != null) tts.speakAsync(lastAiResponse); });
         navPanel.add(replayBtn);
-
         summaryBtn.setEnabled(false);
         summaryBtn.addActionListener(e -> handleSummary());
         navPanel.add(summaryBtn);
+        backBtn.addActionListener(e -> {
+            System.out.println("Back button clicked, calling onBack...");
+            onBack.run();
+        });
         navPanel.add(backBtn);
         bottomPanel.add(navPanel, BorderLayout.SOUTH);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // Event listeners
         startBtn.addActionListener(e -> handleStart());
         sendBtn.addActionListener(e -> handleSend());
         inputField.addActionListener(e -> handleSend());

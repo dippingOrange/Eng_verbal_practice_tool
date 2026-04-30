@@ -64,55 +64,49 @@ public class ReadingPanel extends JPanel {
         centerPanel.add(new JScrollPane(pronDetailArea), BorderLayout.NORTH);
         add(centerPanel, BorderLayout.CENTER);
 
-        // Bottom: buttons
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
-
+        // TTS controls row (separate from bottom action buttons)
+        JPanel ttsRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
         ttsToggle.addActionListener(e -> {
             tts.setEnabled(!tts.isEnabled());
             ttsToggle.setText(tts.isEnabled() ? "🔊 TTS" : "🔇 TTS");
         });
-        bottomPanel.add(ttsToggle);
-
+        ttsRow.add(ttsToggle);
         JComboBox<String> voiceBox = new JComboBox<>(tts.getVoiceNames());
         voiceBox.addActionListener(e -> {
             String selected = (String) voiceBox.getSelectedItem();
-            if (selected != null) {
-                tts.setVoice(TextToSpeechService.VOICES.get(selected));
-            }
+            if (selected != null) tts.setVoice(TextToSpeechService.VOICES.get(selected));
         });
-        bottomPanel.add(new JLabel("Voice:"));
-        bottomPanel.add(voiceBox);
-
+        ttsRow.add(new JLabel("Voice:"));
+        ttsRow.add(voiceBox);
         JComboBox<String> speedBox = new JComboBox<>(TextToSpeechService.SPEED_LABELS);
-        speedBox.setSelectedIndex(2); // 默认 1.0x
+        speedBox.setSelectedIndex(2);
         speedBox.addActionListener(e -> {
             int idx = speedBox.getSelectedIndex();
-            if (idx >= 0) {
-                tts.setSpeed(TextToSpeechService.SPEEDS[idx]);
-            }
+            if (idx >= 0) tts.setSpeed(TextToSpeechService.SPEEDS[idx]);
         });
-        bottomPanel.add(new JLabel("Speed:"));
-        bottomPanel.add(speedBox);
-
+        ttsRow.add(new JLabel("Speed:"));
+        ttsRow.add(speedBox);
         replayBtn.setEnabled(false);
-        replayBtn.addActionListener(e -> {
-            if (lastSpokenText != null) tts.speakAsync(lastSpokenText);
-        });
-        bottomPanel.add(replayBtn);
+        replayBtn.addActionListener(e -> { if (lastSpokenText != null) tts.speakAsync(lastSpokenText); });
+        ttsRow.add(replayBtn);
 
+        // Bottom: action buttons only
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
         recordBtn.addActionListener(e -> handleRecord());
         bottomPanel.add(recordBtn);
-
         JButton newBtn = new JButton("New Passage");
         newBtn.addActionListener(e -> loadNewPassage());
         bottomPanel.add(newBtn);
-
         evaluateBtn.addActionListener(e -> handleEvaluate());
         bottomPanel.add(evaluateBtn);
-
         backBtn.addActionListener(e -> onBack.run());
         bottomPanel.add(backBtn);
-        add(bottomPanel, BorderLayout.SOUTH);
+
+        // Wrap TTS row + bottom panel together
+        JPanel southWrap = new JPanel(new BorderLayout());
+        southWrap.add(ttsRow, BorderLayout.NORTH);
+        southWrap.add(bottomPanel, BorderLayout.SOUTH);
+        add(southWrap, BorderLayout.SOUTH);
 
         loadNewPassage();
     }

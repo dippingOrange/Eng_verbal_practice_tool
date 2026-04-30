@@ -33,25 +33,40 @@ public class TextToSpeechService {
 
     public void speak(String text) {
         if (!enabled || text == null || text.isEmpty()) return;
-        // 前导停顿：消化 edge-playback 初始化延迟，避免开头丢词
-        text = "... " + text;
         if (text.length() > 500) text = text.substring(0, 497) + "...";
 
+        File tempFile = new File("tts_temp.mp3");
+        tempFile.delete();
+
         try {
-            List<String> cmd = new ArrayList<>();
-            cmd.add("edge-playback");
-            cmd.add("--voice"); cmd.add(voice);
+            // Step 1: 生成完整音频文件（不做流式播放）
+            List<String> genCmd = new ArrayList<>();
+            genCmd.add("edge-tts");
+            genCmd.add("--voice"); genCmd.add(voice);
             if (speed != 1.0) {
                 int ratePercent = Math.round((float) ((speed - 1.0) * 100));
-                cmd.add("--rate");
-                cmd.add((ratePercent >= 0 ? "+" : "") + ratePercent + "%");
+                genCmd.add("--rate");
+                genCmd.add((ratePercent >= 0 ? "+" : "") + ratePercent + "%");
             }
-            cmd.add("--text"); cmd.add(text);
+            genCmd.add("--text"); genCmd.add(text);
+            genCmd.add("--write-media"); genCmd.add(tempFile.getAbsolutePath());
 
-            new ProcessBuilder(cmd).redirectErrorStream(true).start().waitFor();
+            Process gen = new ProcessBuilder(genCmd).redirectErrorStream(true).start();
+            gen.getInputStream().transferTo(OutputStream.nullOutputStream());
+            int code = gen.waitFor();
+
+            if (code != 0 || !tempFile.exists() || tempFile.length() == 0) return;
+
+            // Step 2: 播放完整文件（从头开始，零丢词）
+            new ProcessBuilder("cmd", "/c", "start", "/min", "wmplayer",
+                    tempFile.getAbsolutePath(), "/close").start();
+
+            // 等待 wmplayer 播放完毕（最长 60s）
+            Thread.sleep(Math.min(60000, tempFile.length() / 2000 + 2000));
+            tempFile.delete();
 
         } catch (IOException | InterruptedException e) {
-            // silently ignore — user can retry with replay button
+            // silently ignore
         }
     }
 

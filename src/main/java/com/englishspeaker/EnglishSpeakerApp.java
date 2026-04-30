@@ -115,8 +115,11 @@ public class EnglishSpeakerApp extends JFrame {
     }
 
     private void showHome() {
+        System.out.println("showHome called, switching to HOME card");
         conversationPanel.reset();
         cardLayout.show(mainPanel, HOME);
+        mainPanel.revalidate();
+        mainPanel.repaint();
     }
 
     private void showReading() {
