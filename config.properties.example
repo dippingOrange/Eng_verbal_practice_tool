@@ -1,3 +1,8 @@
 api.endpoint=https://api.deepseek.com/v1/chat/completions
 api.key=-
 api.model=deepseek-v4-pro
+
+# Alibaba Cloud Pronunciation Assessment (optional)
+#aliyun.accessKeyId=your-access-key-id
+#aliyun.accessKeySecret=your-access-key-secret
+#aliyun.appKey=your-app-key

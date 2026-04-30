@@ -8,11 +8,13 @@ import com.englishspeaker.service.TextToSpeechService;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 
 public class ReadingPanel extends JPanel {
     private final JTextArea passageArea = new JTextArea(6, 50);
     private final JTextArea inputArea = new JTextArea(4, 50);
     private final JTextArea resultArea = new JTextArea(5, 50);
+    private final JTextArea pronDetailArea = new JTextArea(3, 50);
     private final JButton evaluateBtn = new JButton("Evaluate");
     private final JButton backBtn = new JButton("Back");
     private final ReadingService readingService;
@@ -21,7 +23,10 @@ public class ReadingPanel extends JPanel {
     private final TextToSpeechService tts = new TextToSpeechService();
     private final JButton recordBtn = new JButton("🎤 Record");
     private final JButton ttsToggle = new JButton("🔊 TTS");
+    private final JButton replayBtn = new JButton("🔁 Replay");
     private String currentPassage;
+    private String lastSpokenText;
+    private File lastRecordingFile;
 
     public ReadingPanel(ReadingService readingService, Runnable onBack) {
         this.readingService = readingService;
@@ -51,6 +56,12 @@ public class ReadingPanel extends JPanel {
         resultArea.setWrapStyleWord(true);
         resultArea.setFont(new Font("Arial", Font.PLAIN, 14));
         centerPanel.add(new JScrollPane(resultArea), BorderLayout.SOUTH);
+
+        pronDetailArea.setEditable(false);
+        pronDetailArea.setFont(new Font("Arial", Font.PLAIN, 12));
+        pronDetailArea.setVisible(false);
+        pronDetailArea.setBackground(new Color(245, 245, 255));
+        centerPanel.add(new JScrollPane(pronDetailArea), BorderLayout.NORTH);
         add(centerPanel, BorderLayout.CENTER);
 
         // Bottom: buttons
@@ -83,6 +94,12 @@ public class ReadingPanel extends JPanel {
         bottomPanel.add(new JLabel("Speed:"));
         bottomPanel.add(speedBox);
 
+        replayBtn.setEnabled(false);
+        replayBtn.addActionListener(e -> {
+            if (lastSpokenText != null) tts.speakAsync(lastSpokenText);
+        });
+        bottomPanel.add(replayBtn);
+
         recordBtn.addActionListener(e -> handleRecord());
         bottomPanel.add(recordBtn);
 
@@ -103,6 +120,7 @@ public class ReadingPanel extends JPanel {
     private void handleRecord() {
         if (recorder.isRecording()) {
             recorder.stopRecording();
+            lastRecordingFile = recorder.getTempFile();
             recordBtn.setText("🎤 Transcribing...");
             recordBtn.setEnabled(false);
 
@@ -154,23 +172,39 @@ public class ReadingPanel extends JPanel {
         evaluateBtn.setEnabled(false);
         resultArea.setText("Evaluating...");
 
+        File wav = (lastRecordingFile != null && lastRecordingFile.exists()) ? lastRecordingFile : null;
+
         SwingWorker<ReadingResult, Void> worker = new SwingWorker<>() {
             @Override
             protected ReadingResult doInBackground() throws Exception {
-                return readingService.evaluate(currentPassage, input);
+                return readingService.evaluate(currentPassage, input, wav);
             }
 
             @Override
             protected void done() {
                 try {
                     ReadingResult result = get();
-                    String resultText = "Score: " + result.getScore() + "/100\n"
-                            + "Feedback: " + result.getFeedback() + "\n"
-                            + "Tips: " + result.getTips();
-                    resultArea.setText(resultText);
-                    tts.speakAsync("Your score is " + result.getScore()
+                    StringBuilder resultText = new StringBuilder();
+                    resultText.append("Score: ").append(result.getScore()).append("/100\n");
+                    resultText.append("Feedback: ").append(result.getFeedback()).append("\n");
+                    resultText.append("Tips: ").append(result.getTips());
+                    resultArea.setText(resultText.toString());
+
+                    // 显示发音评测详情
+                    if (result.getPronunciationScore() > 0) {
+                        pronDetailArea.setText("Pronunciation: " + result.getPronunciationScore() + "/100  "
+                                + "Fluency: " + result.getFluencyScore() + "/100  "
+                                + "Completeness: " + result.getCompletenessScore() + "/100");
+                        pronDetailArea.setVisible(true);
+                    } else {
+                        pronDetailArea.setVisible(false);
+                    }
+
+                    lastSpokenText = "Your score is " + result.getScore()
                             + " out of 100. " + result.getFeedback()
-                            + ". Tip: " + result.getTips());
+                            + ". Tip: " + result.getTips();
+                    replayBtn.setEnabled(true);
+                    tts.speakAsync(lastSpokenText);
                 } catch (Exception e) {
                     resultArea.setText("Error: " + e.getMessage());
                 } finally {

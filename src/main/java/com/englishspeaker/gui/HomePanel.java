@@ -1,24 +1,21 @@
 package com.englishspeaker.gui;
 
-import com.englishspeaker.service.UserService;
-
 import javax.swing.*;
 import java.awt.*;
 
 public class HomePanel extends JPanel {
-    private final JLabel welcomeLabel;
 
-    public HomePanel(UserService userService, Runnable onReading, Runnable onConversation, Runnable onLogout) {
+    public HomePanel(Runnable onReading, Runnable onConversation, Runnable onSettings) {
         setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.gridx = 0;
         gbc.gridwidth = 1;
 
-        welcomeLabel = new JLabel("Welcome, " + userService.getCurrentUser());
-        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        JLabel titleLabel = new JLabel("English Speaking Practice");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
         gbc.gridy = 0;
-        add(welcomeLabel, gbc);
+        add(titleLabel, gbc);
 
         JButton readingBtn = new JButton("Reading Test");
         readingBtn.setPreferredSize(new Dimension(220, 40));
@@ -32,17 +29,10 @@ public class HomePanel extends JPanel {
         gbc.gridy = 2;
         add(conversationBtn, gbc);
 
-        JButton logoutBtn = new JButton("Logout");
-        logoutBtn.setPreferredSize(new Dimension(220, 40));
-        logoutBtn.addActionListener(e -> {
-            userService.logout();
-            onLogout.run();
-        });
+        JButton settingsBtn = new JButton("API Settings");
+        settingsBtn.setPreferredSize(new Dimension(220, 30));
+        settingsBtn.addActionListener(e -> onSettings.run());
         gbc.gridy = 3;
-        add(logoutBtn, gbc);
-    }
-
-    public void updateWelcome(String username) {
-        welcomeLabel.setText("Welcome, " + username);
+        add(settingsBtn, gbc);
     }
 }

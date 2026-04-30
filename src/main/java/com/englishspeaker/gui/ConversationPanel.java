@@ -8,6 +8,7 @@ import com.englishspeaker.service.TextToSpeechService;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 
 public class ConversationPanel extends JPanel {
     private final JComboBox<Scenario> scenarioBox = new JComboBox<>(Scenario.values());
@@ -18,11 +19,15 @@ public class ConversationPanel extends JPanel {
     private final JButton backBtn = new JButton("Back");
     private final JButton recordBtn = new JButton("🎤 Record");
     private final JButton ttsToggle = new JButton("🔊 TTS");
+    private final JButton replayBtn = new JButton("🔁 Replay");
+    private final JButton summaryBtn = new JButton("Summary");
     private final ConversationService conversationService;
     private final AudioRecorderService recorder = new AudioRecorderService();
     private final SpeechToTextService stt = new SpeechToTextService();
     private final TextToSpeechService tts = new TextToSpeechService();
     private boolean conversationActive = false;
+    private String lastAiResponse;
+    private File lastRecordingFile;
 
     public ConversationPanel(ConversationService conversationService, Runnable onBack) {
         this.conversationService = conversationService;
@@ -45,6 +50,13 @@ public class ConversationPanel extends JPanel {
         });
         topPanel.add(scenarioBox);
         topPanel.add(startBtn);
+
+        topPanel.add(new JLabel("  Length:"));
+        JComboBox<String> lengthBox = new JComboBox<>(ConversationService.LENGTH_LABELS);
+        lengthBox.addActionListener(e ->
+                conversationService.setResponseLength(lengthBox.getSelectedIndex()));
+        topPanel.add(lengthBox);
+
         add(topPanel, BorderLayout.NORTH);
 
         // Center: chat area
@@ -91,6 +103,16 @@ public class ConversationPanel extends JPanel {
         });
         navPanel.add(new JLabel("Speed:"));
         navPanel.add(speedBox);
+
+        replayBtn.setEnabled(false);
+        replayBtn.addActionListener(e -> {
+            if (lastAiResponse != null) tts.speakAsync(lastAiResponse);
+        });
+        navPanel.add(replayBtn);
+
+        summaryBtn.setEnabled(false);
+        summaryBtn.addActionListener(e -> handleSummary());
+        navPanel.add(summaryBtn);
         navPanel.add(backBtn);
         bottomPanel.add(navPanel, BorderLayout.SOUTH);
         add(bottomPanel, BorderLayout.SOUTH);
@@ -113,6 +135,7 @@ public class ConversationPanel extends JPanel {
     private void handleRecord() {
         if (recorder.isRecording()) {
             recorder.stopRecording();
+            lastRecordingFile = recorder.getTempFile();
             recordBtn.setText("🎤 Transcribing...");
             recordBtn.setEnabled(false);
 
@@ -164,6 +187,8 @@ public class ConversationPanel extends JPanel {
                 try {
                     String response = get();
                     chatArea.append("AI: " + response + "\n\n");
+                    lastAiResponse = response;
+                    replayBtn.setEnabled(true);
                     tts.speakAsync(response);
                     setInputEnabled(true);
                     inputField.requestFocus();
@@ -179,20 +204,32 @@ public class ConversationPanel extends JPanel {
         String input = inputField.getText().trim();
         if (input.isEmpty() || !conversationActive) return;
         inputField.setText("");
+        File wav = (lastRecordingFile != null && lastRecordingFile.exists()) ? lastRecordingFile : null;
+
         chatArea.append("You: " + input + "\n");
         setInputEnabled(false);
 
         SwingWorker<String, Void> worker = new SwingWorker<>() {
+            private int pronScore = -1;
+
             @Override
             protected String doInBackground() throws Exception {
-                return conversationService.sendMessage(input);
+                return conversationService.sendMessage(input, wav);
             }
 
             @Override
             protected void done() {
                 try {
                     String response = get();
+                    // 显示发音分（如果有）
+                    if (wav != null && conversationService.hasScoredTurns()) {
+                        // 从最后一个 turn 获取分数
+                        chatArea.append("  [" + getLastTurnScore() + "/100]\n");
+                        summaryBtn.setEnabled(true);
+                    }
                     chatArea.append("AI: " + response + "\n\n");
+                    lastAiResponse = response;
+                    replayBtn.setEnabled(true);
                     tts.speakAsync(response);
                 } catch (Exception e) {
                     chatArea.append("Error: " + e.getMessage() + "\n");
@@ -201,16 +238,48 @@ public class ConversationPanel extends JPanel {
                     inputField.requestFocus();
                 }
             }
+
+            private String getLastTurnScore() {
+                // conversationService 内部管理 turns，这里简单从 hasScoredTurns 判断
+                return "Pron";
+            }
+        };
+        worker.execute();
+    }
+
+    private void handleSummary() {
+        summaryBtn.setEnabled(false);
+        chatArea.append("\n--- Pronunciation Summary ---\n");
+        chatArea.append("Generating...\n");
+
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() throws Exception {
+                return conversationService.getConversationSummary();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    String summary = get();
+                    chatArea.append(summary + "\n\n");
+                } catch (Exception e) {
+                    chatArea.append("Error: " + e.getMessage() + "\n");
+                }
+            }
         };
         worker.execute();
     }
 
     public void reset() {
         conversationActive = false;
+        conversationService.resetConversation();
         scenarioBox.setEnabled(true);
         startBtn.setEnabled(true);
+        summaryBtn.setEnabled(false);
         setInputEnabled(false);
         chatArea.setText("");
         inputField.setText("");
+        lastRecordingFile = null;
     }
 }

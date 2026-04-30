@@ -7,3 +7,6 @@ STT/
 record_temp.wav
 tts_temp.mp3
 run.bat
+dist/
+*.log
+Phase*.md

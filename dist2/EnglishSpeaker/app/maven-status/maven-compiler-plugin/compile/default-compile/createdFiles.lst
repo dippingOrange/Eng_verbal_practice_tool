@@ -1,0 +1,16 @@
+com\englishspeaker\model\User.class
+com\englishspeaker\service\ReadingService.class
+com\englishspeaker\EnglishSpeakerApp.class
+com\englishspeaker\model\ReadingResult.class
+com\englishspeaker\gui\ConversationPanel$2.class
+com\englishspeaker\gui\ReadingPanel.class
+com\englishspeaker\model\Scenario.class
+com\englishspeaker\gui\ConversationPanel$3.class
+com\englishspeaker\gui\ReadingPanel$1.class
+com\englishspeaker\gui\HomePanel.class
+com\englishspeaker\service\UserService.class
+com\englishspeaker\gui\ConversationPanel$1.class
+com\englishspeaker\gui\ConversationPanel.class
+com\englishspeaker\service\AiService.class
+com\englishspeaker\gui\LoginPanel.class
+com\englishspeaker\service\ConversationService.class
